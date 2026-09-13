@@ -88,6 +88,11 @@ The publisher resumed from the tip each time without backfilling.
 
 ## Still open
 
+- **Serving a long window.** Under `nuthatch serve` defaults (512 MB analytics limit) one day of every contract
+  view serves: the chart statement in 1.9 s. Over 8 days, kittiwake#143's chart statement (daily figures joined
+  to seconds behind) and its cohort statement are refused for memory, though each half fits alone. Both pass at
+  `NUTHATCH_ANALYTICS_MEMORY_LIMIT=1GB` (4.2 s and 3.2 s). Splitting those statements is the cheaper fix; 90 days
+  has not been measured.
 - **Sealing megabyte ranges.** Seal cuts are bounded by rows and span, not bytes. Typed rows are many small
   rows, which a row bound handles; the byte bound Chief ruled for on 2026-09-13 is being built separately.
 
@@ -96,11 +101,10 @@ The publisher resumed from the tip each time without backfilling.
 `checks/parity-2026-09-07.sql` compares `qos_indexer_daily` for 2026-09-07 with figures computed straight
 from that day's 288 raw documents by `scripts/parity-reference.py`, which shares no code with the views.
 Counts, buckets and the worst bucket must match exactly; rates and fees to 1e-9 relative. Expect zero
-rows. The check needs every document for the day resolved and a raised analytics memory limit (see above).
+rows. The check needs every document for the day resolved.
 
-Run on 2026-09-13 over blocks 48,119,000 to 48,136,546 (544 s, 596 calls, 260 MB hot store plus 53 MB
-sealed): 575 of 576 documents for the day resolved, and 287 of them byte-identical to independently
-fetched copies. Against a reference built from the same 287 documents, all 56 indexers matched: counts,
-buckets, bad buckets and the worst bucket exactly, rates and fees within 1.1e-14 relative. The committed
-check still fails on that run, correctly, because of the missing bucket.
+Run on 2026-09-13 from block 48,119,000 to the tip, killed with `kill -9` mid-resolution and restarted: 1,956
+indexer-attempt and 1,954 query-result documents, every one verified, none given up, rejected or refused, and
+one sender. For 2026-09-07, 288 documents per topic (715,970 and 315,117 typed rows), and the check returns
+zero rows in 1.75 s. The store is 1.8 GB hot plus 312 MB sealed.
 
