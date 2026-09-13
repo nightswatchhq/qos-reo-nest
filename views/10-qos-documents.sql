@@ -1,50 +1,65 @@
--- The two switches the rest of the views read, kept in one place so turning either on is a one-line
--- change rather than an edit to every view.
---
--- `require_verified`: every document this oracle publishes is 0.5 to 1.9 MB, over nuthatch's 256 KiB
--- single-block verification limit, so today each one is stored `verified = false`. Flip this to TRUE
--- once multi-block verification lands and nothing unverified will reach a figure.
+-- `require_verified`: nuthatch stores only documents proven against their CID (RFC-0037 slice 7), so
+-- every row this build writes is verified. The switch stays as the guard against a row an older build
+-- stored unverified.
 CREATE VIEW qos_settings AS
-SELECT FALSE AS require_verified;
+SELECT TRUE AS require_verified;
 
--- One JSON array per five-minute bucket. `from_json` with an explicit shape rather than `json_extract`
--- per field: the document is parsed once, and a field the publisher renames reads as NULL instead of
--- failing the view.
+-- The typed rows nuthatch exploded from each proven document when it resolved (RFC-0037 slice 8), from
+-- a listed publisher only. Nothing here parses JSON. Stored columns are cast once, here: numbers arrive
+-- as their decimal text, and an absent one is empty text, which reads as NULL.
 CREATE VIEW qos_indexer_attempt_raw AS
-SELECT p.cid,
-       CAST(p.verified AS VARCHAR) = 'true' AS verified,
-       p.block_number,
-       p.log_index,
-       unnest(from_json(p.content, '[{
-         "indexer_wallet": "VARCHAR", "indexer_url": "VARCHAR",
-         "subgraph_deployment_ipfs_hash": "VARCHAR", "chain": "VARCHAR", "gateway_id": "VARCHAR",
-         "start_epoch": "BIGINT", "end_epoch": "BIGINT",
-         "query_count": "DOUBLE", "num_indexer_200_responses": "DOUBLE",
-         "proportion_indexer_200_responses": "DOUBLE",
-         "avg_indexer_latency_ms": "DOUBLE", "max_indexer_latency_ms": "DOUBLE",
-         "stdev_indexer_latency_ms": "DOUBLE",
-         "avg_indexer_blocks_behind": "DOUBLE", "max_indexer_blocks_behind": "DOUBLE",
-         "avg_query_fee": "DOUBLE", "max_query_fee": "DOUBLE", "total_query_fees": "DOUBLE"
-       }]')) AS r
-FROM qos_indexer_payload p
-WHERE CAST(p.verified AS VARCHAR) = 'true'
+SELECT r.cid,
+       CAST(d.verified AS VARCHAR) = 'true' AS verified,
+       CAST(r.block_number AS BIGINT) AS block_number,
+       CAST(r.document_log_index AS BIGINT) AS log_index,
+       CAST(r.element AS BIGINT) AS element,
+       r.indexer_wallet, r.indexer_url, r.subgraph_deployment_ipfs_hash, r.chain, r.gateway_id,
+       CAST(r.start_epoch AS BIGINT) AS start_epoch,
+       CAST(r.end_epoch AS BIGINT) AS end_epoch,
+       CAST(nullif(r.query_count, '') AS DOUBLE) AS query_count,
+       CAST(nullif(r.num_indexer_200_responses, '') AS DOUBLE) AS num_indexer_200_responses,
+       CAST(nullif(r.proportion_indexer_200_responses, '') AS DOUBLE) AS proportion_indexer_200_responses,
+       CAST(nullif(r.avg_indexer_latency_ms, '') AS DOUBLE) AS avg_indexer_latency_ms,
+       CAST(nullif(r.max_indexer_latency_ms, '') AS DOUBLE) AS max_indexer_latency_ms,
+       CAST(nullif(r.stdev_indexer_latency_ms, '') AS DOUBLE) AS stdev_indexer_latency_ms,
+       CAST(nullif(r.avg_indexer_blocks_behind, '') AS DOUBLE) AS avg_indexer_blocks_behind,
+       CAST(nullif(r.max_indexer_blocks_behind, '') AS DOUBLE) AS max_indexer_blocks_behind,
+       CAST(nullif(r.avg_query_fee, '') AS DOUBLE) AS avg_query_fee,
+       CAST(nullif(r.max_query_fee, '') AS DOUBLE) AS max_query_fee,
+       CAST(nullif(r.total_query_fees, '') AS DOUBLE) AS total_query_fees
+FROM qos_indexer_attempt_rows r
+JOIN qos_indexer_payload d
+  ON CAST(d.block_number AS BIGINT) = CAST(r.block_number AS BIGINT)
+ AND CAST(d.log_index AS BIGINT) = CAST(r.document_log_index AS BIGINT)
+JOIN qos_published_call c
+  ON c.block_number = CAST(r.block_number AS BIGINT) AND c.log_index = CAST(r.source_log_index AS BIGINT)
+WHERE CAST(d.verified AS VARCHAR) = 'true'
    OR NOT (SELECT require_verified FROM qos_settings);
 
 CREATE VIEW qos_query_result_raw AS
-SELECT p.cid,
-       CAST(p.verified AS VARCHAR) = 'true' AS verified,
-       p.block_number,
-       p.log_index,
-       unnest(from_json(p.content, '[{
-         "subgraph_deployment_ipfs_hash": "VARCHAR", "chain": "VARCHAR", "gateway_id": "VARCHAR",
-         "start_epoch": "BIGINT", "end_epoch": "BIGINT",
-         "query_count": "DOUBLE", "gateway_query_success_rate": "DOUBLE",
-         "user_attributed_error_rate": "DOUBLE",
-         "avg_gateway_latency_ms": "DOUBLE", "max_gateway_latency_ms": "DOUBLE",
-         "stdev_gateway_latency_ms": "DOUBLE",
-         "avg_query_fee": "DOUBLE", "max_query_fee": "DOUBLE", "total_query_fees": "DOUBLE",
-         "most_recent_query_ts": "BIGINT"
-       }]')) AS r
-FROM qos_query_payload p
-WHERE CAST(p.verified AS VARCHAR) = 'true'
+SELECT r.cid,
+       CAST(d.verified AS VARCHAR) = 'true' AS verified,
+       CAST(r.block_number AS BIGINT) AS block_number,
+       CAST(r.document_log_index AS BIGINT) AS log_index,
+       CAST(r.element AS BIGINT) AS element,
+       r.subgraph_deployment_ipfs_hash, r.chain, r.gateway_id,
+       CAST(r.start_epoch AS BIGINT) AS start_epoch,
+       CAST(r.end_epoch AS BIGINT) AS end_epoch,
+       CAST(nullif(r.query_count, '') AS DOUBLE) AS query_count,
+       CAST(nullif(r.gateway_query_success_rate, '') AS DOUBLE) AS gateway_query_success_rate,
+       CAST(nullif(r.user_attributed_error_rate, '') AS DOUBLE) AS user_attributed_error_rate,
+       CAST(nullif(r.avg_gateway_latency_ms, '') AS DOUBLE) AS avg_gateway_latency_ms,
+       CAST(nullif(r.max_gateway_latency_ms, '') AS DOUBLE) AS max_gateway_latency_ms,
+       CAST(nullif(r.stdev_gateway_latency_ms, '') AS DOUBLE) AS stdev_gateway_latency_ms,
+       CAST(nullif(r.avg_query_fee, '') AS DOUBLE) AS avg_query_fee,
+       CAST(nullif(r.max_query_fee, '') AS DOUBLE) AS max_query_fee,
+       CAST(nullif(r.total_query_fees, '') AS DOUBLE) AS total_query_fees,
+       CAST(CAST(nullif(r.most_recent_query_ts, '') AS DOUBLE) AS BIGINT) AS most_recent_query_ts
+FROM qos_query_result_rows r
+JOIN qos_query_payload d
+  ON CAST(d.block_number AS BIGINT) = CAST(r.block_number AS BIGINT)
+ AND CAST(d.log_index AS BIGINT) = CAST(r.document_log_index AS BIGINT)
+JOIN qos_published_call c
+  ON c.block_number = CAST(r.block_number AS BIGINT) AND c.log_index = CAST(r.source_log_index AS BIGINT)
+WHERE CAST(d.verified AS VARCHAR) = 'true'
    OR NOT (SELECT require_verified FROM qos_settings);

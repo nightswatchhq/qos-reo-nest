@@ -9,7 +9,8 @@ nuthatch dev --dir qos-reo-nest --ipfs https://ipfs.thegraph.com/ipfs/
 nuthatch sql --dir qos-reo-nest "SELECT * FROM qos_indexer_daily WHERE day = DATE '2026-09-07' ORDER BY query_count DESC"
 ```
 
-Needs a nuthatch build with `[[ipfs]] cid_json_path` and `json_match` (nightswatchhq/nuthatch#1367).
+Needs a nuthatch build with typed rows from IPFS documents: `[ipfs.rows]` (RFC-0037 slice 8, stacked on
+nightswatchhq/nuthatch#1375).
 
 ## What the oracle publishes
 
@@ -39,7 +40,12 @@ subgraph starts at 24,747,400 if more history is wanted.
 - **`qos_indexer_seconds_behind`** / **`qos_seconds_behind`** - seconds behind the freshest credible
   peer on the same deployment, per indexer and per deployment.
 - **`qos_indexer_attempt`** / **`qos_query_result`** - the typed five-minute rows everything above is
-  built from.
+  built from, from a listed publisher and one document per bucket.
+- **`qos_freshness`** - per topic, the newest bucket held and, separately, when the publisher last posted.
+- **`qos_publisher`**, **`qos_rejected_documents`** - who counts as the publisher, and the documents no
+  listed publisher named, counted rather than dropped.
+- **`qos_indexer_attempt_rows`** / **`qos_query_result_rows`** - the stored typed rows, one per element of
+  each proven document. Numbers are decimal text; the views cast them.
 
 What each view computes is in `semantic.toml`. The arithmetic, which is where the old Lodestar card went
 wrong:
@@ -66,28 +72,24 @@ These are gaps in Edge & Node's data, not in this nest, and they read as gaps ra
 
 The publisher resumed from the tip each time without backfilling.
 
-## What is not finished
+## How it is stored
 
-- **Verification.** Every document is over nuthatch's 256 KiB single-block limit, so every row is
-  stored `verified = false`: the bytes came from the gateway and have not been proven against the CID.
-  `qos_settings.require_verified` is the switch to require verification once nuthatch can verify
-  multi-block documents.
-- **Publisher filter.** Top-level call rows do not carry the sender yet, so the nest accepts every
-  `submitQoSPayload`, whoever sent it. The filter is written and waiting in `pending/publisher-filter.sql`.
-- **Completeness.** The resolver fetches at most 64 documents per window and never retries one that
-  fails. `[extract] blocks = true` caps the window at 800 blocks, about 27 documents, which keeps a run
-  inside the budget at today's cadence (0 budget hits over 17,500 blocks, measured). A transient gateway
-  error still loses a document for good: on 2026-09-13 the 00:10 bucket of 2026-09-07
-  (`QmYTFznQSTJAXMJ9zJi2dHQyDs9oGAUESfhwvUUdcvrTgk`) failed with "reading response body", was never
-  asked for again, and that one missing bucket changes the day's figures for 49 of 56 indexers. The
-  out-of-band resolver with retries fixes both.
-- **`--seal-direct`** does not decode top-level calls or resolve documents. Do not backfill this nest
-  with it.
-- **Query memory.** Views recompute over the stored JSON on every query, and one day of it does not fit
-  nuthatch's default 512 MB analytics budget: `qos_indexer_daily` for one day is refused at the default
-  and takes 0.97 s and 3.86 GB peak resident memory with `NUTHATCH_ANALYTICS_MEMORY_LIMIT=8GB` (measured
-  on about 1.1 days of documents). Serving 90 days this way will not work; the daily rollups need to be
-  kept rather than recomputed.
+- **Every document is proven** against its CID before anything is written (RFC-0037 slice 7); a document
+  nothing proves writes no row.
+- **Resolution completes.** Documents are fetched behind the cursor and retried until stored or given up
+  on, so a gateway error delays a bucket rather than losing it (slice 6). A backfill needs no window cap.
+- **Typed rows at resolution** (slice 8). Each document becomes one row per element in
+  `qos_indexer_attempt_rows` or `qos_query_result_rows`, written in the same transaction as the document,
+  and the raw JSON is not kept (`keep_content = false`). A document whose content does not fit the
+  declared columns is refused whole and counted in `nuthatch_nest_ipfs_rows_refused_total`, never stored
+  half typed. The views read columns and parse no JSON.
+- **The publisher filter is live.** Call rows carry `tx_from`; `qos_published_call` keeps the listed
+  publisher's posts, and `qos_rejected_documents` counts the rest.
+
+## Still open
+
+- **Sealing megabyte ranges.** Seal cuts are bounded by rows and span, not bytes. Typed rows are many small
+  rows, which a row bound handles; the byte bound Chief ruled for on 2026-09-13 is being built separately.
 
 ## Checks
 
@@ -102,4 +104,3 @@ fetched copies. Against a reference built from the same 287 documents, all 56 in
 buckets, bad buckets and the worst bucket exactly, rates and fees within 1.1e-14 relative. The committed
 check still fails on that run, correctly, because of the missing bucket.
 
-`pending/` holds SQL that is written but not loaded, each file saying what it waits for.
