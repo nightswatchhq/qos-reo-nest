@@ -42,6 +42,11 @@ subgraph starts at 24,747,400 if more history is wanted.
 - **`qos_indexer_attempt`** / **`qos_query_result`** - the typed five-minute rows everything above is
   built from, from a listed publisher and one document per bucket.
 - **`qos_freshness`** - per topic, the newest bucket held and, separately, when the publisher last posted.
+  Read from postings and stored documents, so it costs the same at 90 days as at one.
+- **`qos_day_resolution`** - per day and topic, buckets posted and stored, postings whose document is not
+  stored (a given-up document counts), and the day's closing block. What says a day is final.
+- **`qos_posting`** / **`qos_stored_document`** - each document a listed publisher named, from its calldata,
+  and each document stored, keyed by block and CID.
 - **`qos_publisher`**, **`qos_rejected_documents`** - who counts as the publisher, and the documents no
   listed publisher named, counted rather than dropped.
 - **`qos_indexer_attempt_rows`** / **`qos_query_result_rows`** - the stored typed rows, one per element of

@@ -110,6 +110,9 @@ description = "Per indexer, deployment, chain, gateway and UTC day. success_rate
 [view.qos_chain_block_time]
 description = "Block time in seconds by the oracle's chain name, identical to kittiwake's block_time_sec. A chain not listed has no seconds-behind figure."
 
+[view.qos_day_resolution]
+description = "Per UTC day and topic: buckets posted, buckets whose document is stored, postings whose document is not (a given-up document stays unresolved), and the highest block holding a posting. What a reader checks before treating a day as final."
+
 [view.qos_deployment_daily]
 description = "Each deployment's query total per chain, gateway and day from the gateway's side: the served-share denominator."
 
@@ -117,7 +120,7 @@ description = "Each deployment's query total per chain, gateway and day from the
 description = "The least-lagging credible peer (>=100 queries) per deployment, chain and day, only where at least three credible peers exist."
 
 [view.qos_freshness]
-description = "Per topic: the newest bucket this nest holds figures for, and separately when a listed publisher last posted. They are different questions."
+description = "Per topic: the newest bucket this nest holds figures for, and separately when a listed publisher last posted. They are different questions. Read from postings and stored documents, so its cost follows documents, not typed rows."
 
 [view.qos_indexer_attempt]
 description = "One row per indexer, deployment, chain and gateway per five-minute bucket, typed. day is the UTC day of bucket_start (the publisher's timestamp is the bucket end). A bucket published twice counts once, from its first document."
@@ -139,6 +142,9 @@ description = "Per indexer, deployment, chain and day: query-weighted blocks beh
 
 [view.qos_indexer_seconds_behind]
 description = "Per indexer per day: query-weighted seconds behind peers, the share of queries more than five minutes behind, and the share of queries that had a known block time."
+
+[view.qos_posting]
+description = "One row per document a listed publisher named, decoded from its calldata: topic (indexer or query), CID, bucket_start (the payload timestamp less 300) and day. Undecodable calldata names nothing."
 
 [view.qos_published_call]
 description = "The submitQoSPayload calls a listed publisher sent, by tx_from."
@@ -163,3 +169,6 @@ description = "Seconds behind net of the deployment's peer floor; the raw figure
 
 [view.qos_settings]
 description = "The nest's switches. require_verified = FALSE until nuthatch verifies multi-block documents; set TRUE and no unverified document reaches any figure."
+
+[view.qos_stored_document]
+description = "One row per stored, verified document, keyed by topic, block and CID, the pair a posting names."
