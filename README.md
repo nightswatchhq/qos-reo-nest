@@ -74,20 +74,32 @@ The publisher resumed from the tip each time without backfilling.
   multi-block documents.
 - **Publisher filter.** Top-level call rows do not carry the sender yet, so the nest accepts every
   `submitQoSPayload`, whoever sent it. The filter is written and waiting in `pending/publisher-filter.sql`.
-- **Completeness past the fetch budget.** The resolver fetches at most 64 documents per window and does
-  not retry the rest. `[extract] blocks = true` caps the window at 800 blocks, about 27 documents, which
-  keeps a run complete at today's cadence. A run with a wider window would lose documents without
-  failing. The out-of-band resolver removes this limit.
+- **Completeness.** The resolver fetches at most 64 documents per window and never retries one that
+  fails. `[extract] blocks = true` caps the window at 800 blocks, about 27 documents, which keeps a run
+  inside the budget at today's cadence (0 budget hits over 17,500 blocks, measured). A transient gateway
+  error still loses a document for good: on 2026-09-13 the 00:10 bucket of 2026-09-07
+  (`QmYTFznQSTJAXMJ9zJi2dHQyDs9oGAUESfhwvUUdcvrTgk`) failed with "reading response body", was never
+  asked for again, and that one missing bucket changes the day's figures for 49 of 56 indexers. The
+  out-of-band resolver with retries fixes both.
 - **`--seal-direct`** does not decode top-level calls or resolve documents. Do not backfill this nest
   with it.
-- **Query cost.** Views recompute over the stored JSON on every query. One day of documents is about
-  620 MB of JSON.
+- **Query memory.** Views recompute over the stored JSON on every query, and one day of it does not fit
+  nuthatch's default 512 MB analytics budget: `qos_indexer_daily` for one day is refused at the default
+  and takes 0.97 s and 3.86 GB peak resident memory with `NUTHATCH_ANALYTICS_MEMORY_LIMIT=8GB` (measured
+  on about 1.1 days of documents). Serving 90 days this way will not work; the daily rollups need to be
+  kept rather than recomputed.
 
 ## Checks
 
 `checks/parity-2026-09-07.sql` compares `qos_indexer_daily` for 2026-09-07 with figures computed straight
 from that day's 288 raw documents by `scripts/parity-reference.py`, which shares no code with the views.
 Counts, buckets and the worst bucket must match exactly; rates and fees to 1e-9 relative. Expect zero
-rows.
+rows. The check needs every document for the day resolved and a raised analytics memory limit (see above).
+
+Run on 2026-09-13 over blocks 48,119,000 to 48,136,546 (544 s, 596 calls, 260 MB hot store plus 53 MB
+sealed): 575 of 576 documents for the day resolved, and 287 of them byte-identical to independently
+fetched copies. Against a reference built from the same 287 documents, all 56 indexers matched: counts,
+buckets, bad buckets and the worst bucket exactly, rates and fees within 1.1e-14 relative. The committed
+check still fails on that run, correctly, because of the missing bucket.
 
 `pending/` holds SQL that is written but not loaded, each file saying what it waits for.
