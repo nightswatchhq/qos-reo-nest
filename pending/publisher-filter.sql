@@ -25,8 +25,10 @@ WITH calls AS (
 SELECT DISTINCT c.block_number, c.sender, h.cid
 FROM calls c,
      LATERAL (
-       SELECT unnest(coalesce(json_extract_string(c.payload, '$[*].hash'),
-                              [json_extract_string(c.payload, '$.hash')])) AS cid
+       -- `$[*].hash` on an object is an empty list, not NULL, so the shape has to be asked for.
+       SELECT unnest(CASE WHEN json_type(c.payload) = 'ARRAY'
+                          THEN json_extract_string(c.payload, '$[*].hash')
+                          ELSE [json_extract_string(c.payload, '$.hash')] END) AS cid
      ) h;
 
 CREATE VIEW qos_indexer_payload_published AS
@@ -41,13 +43,13 @@ FROM qos_query_payload p
 JOIN qos_document_sender s ON s.block_number = p.block_number AND s.cid = p.cid
 JOIN qos_publisher k ON k.address = s.sender;
 
+-- Rejected means no listed publisher named it. A stranger re-posting a published CID in the same block
+-- does not make the real document rejected.
 CREATE VIEW qos_rejected_documents AS
-SELECT 'indexer' AS topic, p.block_number, p.cid, s.sender
+SELECT 'indexer' AS topic, p.block_number, p.cid
 FROM qos_indexer_payload p
-LEFT JOIN qos_document_sender s ON s.block_number = p.block_number AND s.cid = p.cid
-WHERE s.sender IS NULL OR s.sender NOT IN (SELECT address FROM qos_publisher)
+WHERE NOT EXISTS (SELECT 1 FROM qos_indexer_payload_published q WHERE q.block_number = p.block_number AND q.cid = p.cid)
 UNION ALL
-SELECT 'query', p.block_number, p.cid, s.sender
+SELECT 'query', p.block_number, p.cid
 FROM qos_query_payload p
-LEFT JOIN qos_document_sender s ON s.block_number = p.block_number AND s.cid = p.cid
-WHERE s.sender IS NULL OR s.sender NOT IN (SELECT address FROM qos_publisher);
+WHERE NOT EXISTS (SELECT 1 FROM qos_query_payload_published q WHERE q.block_number = p.block_number AND q.cid = p.cid);
