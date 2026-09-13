@@ -1,0 +1,106 @@
+# semantic.toml - what this nest's data *means* (RFC-0016). Read by the MCP `schema`
+# tool, the admin UI, and the scaffolded skill. Edit descriptions freely; the
+# `[table.*.footguns]` are DERIVED from the ABI and regenerated - leave them be.
+
+schema_version = 1
+
+[nest]
+description = "Edge & Node's gateway QoS oracle, read from its own postings on Gnosis: the submitQoSPayload calls to the DataEdge and the five-minute aggregate documents their CIDs name. Serves the per indexer, deployment and day figures behind Lodestar's Query Performance chart and QoS Quality score, with no Graph API key."
+
+[table.blocks]
+description = "One header row per block. Declared for the 800-block window cap it brings to an event-less nest, not for its rows; see nuthatch.toml."
+grain = "one row per block"
+
+[table.blocks.columns]
+base_fee_per_gas = "The `base_fee_per_gas` uint64 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+gas_limit = "The `gas_limit` uint64 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+gas_used = "The `gas_used` uint64 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+l1_block_number = "The `l1_block_number` uint64 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+miner = "The `miner` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+parent_hash = "The `parent_hash` bytes32 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+size = "The `size` uint64 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+transaction_count = "The `transaction_count` uint64 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+
+[table.calls_raw]
+description = "Every top-level transaction to the DataEdge, undecoded: selector and input. The fallback surface for a call whose selector the ABI does not know."
+grain = "one row per top-level transaction to a declared contract"
+
+[table.calls_raw.columns]
+input = "The `input` bytes parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+selector = "The `selector` bytes4 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+
+[table.data_edge__call_submit_qo_s_payload]
+description = "One submitQoSPayload call. _payload is UTF-8 JSON, {topic, hash, timestamp}, where hash is the CID of a five-minute aggregate and timestamp is the bucket END in epoch seconds. Two calls per bucket, one per topic."
+grain = "one row per submitQoSPayload transaction"
+
+[table.data_edge__call_submit_qo_s_payload.columns]
+_payload = "Hex-encoded bytes of the JSON message. json_extract_string(decode(unhex(substr(_payload, 3))), '$.hash') is the CID."
+
+[table.qos_indexer_payload]
+description = "The resolved gateway_indexer_attempt_qos_5_minutes_prod_v3 document a call named: a JSON array with one element per indexer, deployment, chain and gateway for one five-minute bucket. Read it through qos_indexer_attempt, never directly."
+grain = "one row per distinct CID resolved"
+
+[table.qos_indexer_payload.columns]
+cid = "The document's CID as posted in the call's JSON hash field."
+content = "The document, verbatim JSON text."
+verified = "The `verified` bool parameter - stored as exact text `'true'`/`'false'`, not a SQL boolean. `verified = true` and `AND`/`NOT` implicitly cast and work; `COALESCE`, `CASE`, `bool_and`/`bool_or` and `UNION` do not. Write `verified = 'true'` or `CAST(verified AS BOOLEAN)`. True only when the bytes were proven against the CID; every document this oracle publishes is over the 256 KiB single-block limit and reads false until multi-block verification lands."
+
+[table.qos_indexer_payload.footguns]
+bools = ["verified"]
+
+[table.qos_query_payload]
+description = "The resolved gateway_query_result_qos_5_minutes_prod_v3 document a call named: a JSON array with one element per deployment, chain and gateway for one five-minute bucket. Read it through qos_query_result."
+grain = "one row per distinct CID resolved"
+
+[table.qos_query_payload.columns]
+cid = "The document's CID as posted in the call's JSON hash field."
+content = "The document, verbatim JSON text."
+verified = "The `verified` bool parameter - stored as exact text `'true'`/`'false'`, not a SQL boolean. `verified = true` and `AND`/`NOT` implicitly cast and work; `COALESCE`, `CASE`, `bool_and`/`bool_or` and `UNION` do not. Write `verified = 'true'` or `CAST(verified AS BOOLEAN)`. True only when the bytes were proven against the CID; every document this oracle publishes is over the 256 KiB single-block limit and reads false until multi-block verification lands."
+
+[table.qos_query_payload.footguns]
+bools = ["verified"]
+
+[view.qos_allocation_bucket]
+description = "Per indexer, deployment, chain, gateway and bucket, with query-weighted numerators kept for exact re-weighting."
+
+[view.qos_allocation_daily]
+description = "Per indexer, deployment, chain, gateway and UTC day. success_rate = sum(num_200)/sum(query_count); latency and blocks behind query-weighted; buckets, bad_buckets (>=50 queries and <90% success) and the worst such bucket. The grain the QoS Quality score reads."
+
+[view.qos_chain_block_time]
+description = "Block time in seconds by the oracle's chain name, identical to kittiwake's block_time_sec. A chain not listed has no seconds-behind figure."
+
+[view.qos_deployment_daily]
+description = "Each deployment's query total per chain, gateway and day from the gateway's side: the served-share denominator."
+
+[view.qos_deployment_lag_floor]
+description = "The least-lagging credible peer (>=100 queries) per deployment, chain and day, only where at least three credible peers exist."
+
+[view.qos_indexer_attempt]
+description = "One row per indexer, deployment, chain and gateway per five-minute bucket, typed. day is the UTC day of bucket_start (the publisher's timestamp is the bucket end). A bucket published twice counts once, from its first document."
+
+[view.qos_indexer_attempt_raw]
+description = "Indexer-attempt documents exploded into one struct per element, before bucket dedupe. Use qos_indexer_attempt."
+
+[view.qos_indexer_bucket]
+description = "Per indexer per bucket, summed across its allocations: the grain bad buckets are counted at."
+
+[view.qos_indexer_daily]
+description = "Per indexer per UTC day: additive figures summed from qos_allocation_daily, rates as ratios of those sums, never an average of rows. The Query Performance chart."
+
+[view.qos_indexer_deployment_lag]
+description = "Per indexer, deployment, chain and day: query-weighted blocks behind and, where the chain's block time is known, seconds behind."
+
+[view.qos_indexer_seconds_behind]
+description = "Per indexer per day: query-weighted seconds behind peers, the share of queries more than five minutes behind, and the share of queries that had a known block time."
+
+[view.qos_query_result]
+description = "One row per deployment, chain and gateway per five-minute bucket from the gateway's side, typed; same day and dedupe rules as qos_indexer_attempt."
+
+[view.qos_query_result_raw]
+description = "Query-result documents exploded into one struct per element, before bucket dedupe. Use qos_query_result."
+
+[view.qos_seconds_behind]
+description = "Seconds behind net of the deployment's peer floor; the raw figure where no floor exists."
+
+[view.qos_settings]
+description = "The nest's switches. require_verified = FALSE until nuthatch verifies multi-block documents; set TRUE and no unverified document reaches any figure."

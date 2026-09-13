@@ -1,0 +1,45 @@
+[nest]
+name = "qos-reo-nest"
+chain = "gnosis"
+chain_id = 100
+rpc_urls = [
+    "https://rpc.gnosischain.com",
+    "https://rpc.gnosis.gateway.fm",
+]
+schema_version = 1
+block_timestamps = true
+
+# Edge & Node's QoS oracle DataEdge. It emits no events: the publisher calls `submitQoSPayload(bytes)`
+# with a JSON `{topic, hash, timestamp}`, where `hash` is the CID of a five-minute aggregate and
+# `timestamp` is the bucket's END. The reference subgraph starts at 24,747,400; this nest starts at
+# 46,700,000 (2026-06-14 23:15:05 UTC), which covers a 90-day window from 2026-09-13.
+[[contracts]]
+alias = "data_edge"
+address = "0x5b4293b4c0f36cb5d4448950830bc777759b6c4f"
+start_block = 46700000
+abi = "abis/data-edge.json"
+
+[extract]
+top_level_calls = true
+# A header row per block, kept for the window cap it brings rather than the rows. A nest with no events
+# gets an empty `eth_getLogs` every window, so the adaptive window grows 4x each time (1,000 to 4,000
+# in three windows, measured) and every CID past the resolver's 64-per-window budget is lost for good.
+# A blocks nest is capped at 800 blocks, about 27 documents per window at this oracle's cadence.
+blocks = true
+
+# One declaration per topic. Per-indexer, per-deployment rows: the charts and the quality score.
+[[ipfs]]
+name = "qos_indexer_payload"
+on = "data_edge__call_submit_qo_s_payload"
+cid_column = "_payload"
+cid_json_path = "hash"
+json_match = { topic = "gateway_indexer_attempt_qos_5_minutes_prod_v3" }
+
+# Per-deployment rows from the gateway's side: each deployment's query total, the served-share
+# denominator.
+[[ipfs]]
+name = "qos_query_payload"
+on = "data_edge__call_submit_qo_s_payload"
+cid_column = "_payload"
+cid_json_path = "hash"
+json_match = { topic = "gateway_query_result_qos_5_minutes_prod_v3" }

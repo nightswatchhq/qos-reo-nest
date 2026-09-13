@@ -1,0 +1,26 @@
+# nuthatch nest on gnosis
+
+A self-hosted blockchain index. Query it locally; there is no third-party API.
+
+## Contracts
+- `data_edge` = 0x5b4293b4c0f36cb5d4448950830bc777759b6c4f
+
+## Tables (one per contract event)
+- `blocks` -  (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, parent_hash, miner, gas_used, gas_limit, base_fee_per_gas, size, transaction_count, l1_block_number)
+- `data_edge__call_submit_qo_s_payload` -  (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, _payload)
+- `calls_raw` -  (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, selector, input)
+- `qos_indexer_payload` -  (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, cid, content, verified)
+- `qos_query_payload` -  (block_number, block_hash, block_timestamp, tx_hash, log_index, address, _seq, cid, content, verified)
+
+## Live HTTP API (run `nuthatch dev`)
+- `GET /`                    index status
+- `GET /tables`              every table with its columns
+- `GET /table/{name}?limit=N` recent rows of one table (hot + sealed)
+- `GET /entity/{id}`         one row by id (`{block:012}-{logindex:06}`)
+- `GET /sql?q=SELECT...`     read-only SQL; each table is a view named `{alias}__{event}`
+- `GET /balances?limit=N`    top holder balances (when an ERC-20 Transfer table is present)
+- `GET /balance/{address}`   one address's derived balance
+
+## MCP (for coding agents)
+Run `nuthatch mcp` (stdio) to expose tools: status, schema, tables, table, sql, entity,
+balance, top_balances. Fully offline against the local instance; nothing phones home.
