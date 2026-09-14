@@ -93,13 +93,13 @@ The publisher resumed from the tip each time without backfilling.
 
 ## Still open
 
-- **Serving a long window.** Under `nuthatch serve` defaults (512 MB analytics limit) one day of every contract
-  view serves: the chart statement in 1.9 s. Over 8 days, kittiwake#143's chart statement (daily figures joined
-  to seconds behind) and its cohort statement are refused for memory, though each half fits alone. Both pass at
-  `NUTHATCH_ANALYTICS_MEMORY_LIMIT=1GB` (4.2 s and 3.2 s). Splitting those statements is the cheaper fix; 90 days
-  has not been measured.
-- **Sealing megabyte ranges.** Seal cuts are bounded by rows and span, not bytes. Typed rows are many small
-  rows, which a row bound handles; the byte bound Chief ruled for on 2026-09-13 is being built separately.
+- **90 days is extrapolated, not measured in nuthatch.** kittiwake#143 asks for one day per statement. On the
+  2026-09-06..13 store (7.8 days, 4.59M typed rows) the heaviest one-day statement serves at 176 MB in 1.1 to
+  1.5 s, under both the 512 MB default and 256 MB. On a 96-day DuckDB copy of that store memory stayed flat and
+  each statement took 9 to 10 s, because a one-day statement still scans every stored row. Serve with the
+  512 MB default and `NUTHATCH_SQL_MAX_CONCURRENCY` at least 2.
+- **Sealing megabyte ranges** needs nuthatch with byte-bounded seal cuts (nuthatch#1391, merged 2026-09-14,
+  and #1376). Without it a run sealing these ranges reached 4.1 to 4.5 GB RSS.
 
 ## Checks
 
