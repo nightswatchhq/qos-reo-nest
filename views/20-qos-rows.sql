@@ -1,0 +1,88 @@
+-- Typed rows, one per bucket. A day is the UTC day of the bucket's START: the publisher's own
+-- `timestamp` is the bucket's end, so dating by it files the 23:55 bucket under the next day.
+--
+-- If a bucket is ever published twice (a retried post with a new CID), only the first document for it
+-- counts. Summing both would double every figure for those five minutes and nothing downstream could
+-- tell. In 2026-09-06..12 no bucket was published twice.
+
+-- The first document for each bucket, found from one row per document (its element 0) rather than a
+-- window over every row, which at 90 days is tens of millions of rows sorted per query. The key orders
+-- documents by block then log index; a log index is always under 1,000,000.
+CREATE VIEW qos_indexer_attempt_first_document AS
+SELECT start_epoch, min(block_number * 1000000 + log_index) AS document_key
+FROM qos_indexer_attempt_raw
+WHERE element = 0
+GROUP BY start_epoch;
+
+CREATE VIEW qos_indexer_attempt AS
+SELECT r.start_epoch AS bucket_start,
+       r.end_epoch AS bucket_end,
+       DATE '1970-01-01' + CAST(r.start_epoch // 86400 AS INTEGER) AS day,
+       lower(r.indexer_wallet) AS indexer,
+       r.indexer_url,
+       r.subgraph_deployment_ipfs_hash AS deployment,
+       lower(r.chain) AS chain,
+       lower(r.gateway_id) AS gateway,
+       r.query_count,
+       -- The published count, not proportion times count: the count is what the gateway observed.
+       coalesce(r.num_indexer_200_responses, r.proportion_indexer_200_responses * r.query_count) AS num_200,
+       r.avg_indexer_latency_ms AS avg_latency_ms,
+       r.max_indexer_latency_ms AS max_latency_ms,
+       r.stdev_indexer_latency_ms AS stdev_latency_ms,
+       r.avg_indexer_blocks_behind AS avg_blocks_behind,
+       r.max_indexer_blocks_behind AS max_blocks_behind,
+       r.avg_query_fee,
+       r.max_query_fee,
+       r.total_query_fees,
+       r.cid,
+       r.verified,
+       r.block_number
+FROM qos_indexer_attempt_raw r
+JOIN qos_indexer_attempt_first_document f
+  ON f.start_epoch = r.start_epoch AND f.document_key = r.block_number * 1000000 + r.log_index;
+
+CREATE VIEW qos_query_result_first_document AS
+SELECT start_epoch, min(block_number * 1000000 + log_index) AS document_key
+FROM qos_query_result_raw
+WHERE element = 0
+GROUP BY start_epoch;
+
+CREATE VIEW qos_query_result AS
+SELECT r.start_epoch AS bucket_start,
+       r.end_epoch AS bucket_end,
+       DATE '1970-01-01' + CAST(r.start_epoch // 86400 AS INTEGER) AS day,
+       r.subgraph_deployment_ipfs_hash AS deployment,
+       lower(r.chain) AS chain,
+       lower(r.gateway_id) AS gateway,
+       r.query_count,
+       r.gateway_query_success_rate,
+       r.user_attributed_error_rate,
+       r.avg_gateway_latency_ms,
+       r.max_gateway_latency_ms,
+       r.stdev_gateway_latency_ms,
+       r.avg_query_fee,
+       r.max_query_fee,
+       r.total_query_fees,
+       r.most_recent_query_ts,
+       r.cid,
+       r.verified,
+       r.block_number
+FROM qos_query_result_raw r
+JOIN qos_query_result_first_document f
+  ON f.start_epoch = r.start_epoch AND f.document_key = r.block_number * 1000000 + r.log_index;
+
+-- Block times by the oracle's chain name, identical to kittiwake's `block_time_sec`. A chain not listed
+-- has no seconds-behind figure at all: an unknown block time is not evidence of lag.
+CREATE VIEW qos_chain_block_time AS
+SELECT * FROM (VALUES
+  ('mainnet', 12.0), ('sepolia', 12.0), ('moonbeam', 12.0),
+  ('arbitrum-one', 0.25), ('arbitrum', 0.25), ('arbitrum-sepolia', 0.25),
+  ('base', 2.0), ('base-sepolia', 2.0), ('optimism', 2.0), ('optimism-sepolia', 2.0),
+  ('matic', 2.0), ('polygon', 2.0), ('polygon-zkevm', 2.0), ('avalanche', 2.0), ('linea', 2.0),
+  ('blast-mainnet', 2.0), ('boba', 2.0),
+  ('bsc', 3.0), ('chapel', 3.0), ('scroll', 3.0), ('xlayer-mainnet', 3.0), ('chiliz', 3.0),
+  ('chiliz-testnet', 3.0),
+  ('gnosis', 5.0), ('xdai', 5.0), ('celo', 5.0), ('fuse', 5.0),
+  ('fantom', 1.0), ('unichain', 1.0), ('zksync-era', 1.0), ('monad', 1.0),
+  ('sonic', 0.5)
+) AS t(chain, block_time_sec);

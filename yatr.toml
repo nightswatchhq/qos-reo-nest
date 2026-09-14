@@ -5,12 +5,43 @@
 # `check`: `yatr check` is a builtin that validates this file, and it shadows
 # any task of that name without warning.
 
-# This repo is a README and nothing else: the nest it describes has not been
-# committed yet. When nuthatch.toml lands, replace this with the nest tasks
-# used by the other nests in the org (gen / drift / doctor / checks / dev).
+# A nest is config, not code: nuthatch.toml plus derived artifacts. These tasks
+# need the `nuthatch` binary on PATH, from a build with `[[ipfs]] cid_json_path`
+# (nightswatchhq/nuthatch#1367).
 
 [settings]
 cache = true
+
+[tasks.gen]
+desc = "Regenerate schema.json / llms.txt / semantic.toml from nuthatch.toml"
+run = ["nuthatch schema"]
+sources = ["nuthatch.toml", "abis/**/*.json"]
+no_cache = true
+
+[tasks.drift]
+desc = "Fail if the derived artifacts are stale against nuthatch.toml"
+run = [
+    "nuthatch schema",
+    "git diff --exit-code -- schema.json llms.txt semantic.toml",
+]
+sources = ["nuthatch.toml", "abis/**/*.json", "schema.json", "semantic.toml"]
+
+[tasks.doctor]
+desc = "Probe the configured RPC endpoints for getLogs width and archive depth"
+run = ["nuthatch doctor"]
+no_cache = true
+
+[tasks.dev]
+desc = "Index and serve this nest locally, resolving documents through The Graph's IPFS gateway"
+run = ["nuthatch dev --ipfs https://ipfs.thegraph.com/ipfs/"]
+foreground = true
+no_cache = true
+
+[tasks.checks]
+desc = "Run the nest's invariant and parity checks against indexed data"
+run = ["nuthatch check"]
+sources = ["checks/**/*.sql"]
+no_cache = true
 
 [tasks.links]
 desc = "Fail if a relative markdown link points at a file that is not there"
@@ -30,6 +61,6 @@ echo "all relative markdown links resolve"
 ''']
 
 [tasks.ci]
-desc = "What there is to check until the nest lands: links"
-depends = ["links"]
+desc = "What CI can run without RPC access or indexed data: drift and links"
+depends = ["drift", "links"]
 run = []

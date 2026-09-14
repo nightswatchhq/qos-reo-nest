@@ -1,0 +1,5 @@
+nuthatch.redb
+segments/
+mounts.toml
+data/
+*.log

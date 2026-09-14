@@ -1,0 +1,1 @@
+[{"type":"function","name":"submitQoSPayload","inputs":[{"name":"_payload","type":"bytes"}],"outputs":[],"stateMutability":"nonpayable"}]
