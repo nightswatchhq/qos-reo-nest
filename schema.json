@@ -1,103 +1,6 @@
 {
-  "registry_hash": "0x6a05c27b14fe27ebd20f046b8481265f158cc9bb74da712bdc2bf626e362f585",
+  "registry_hash": "0x10918245671ca7feee448489d90217ac1d204e34a73cfa7450ce39e4cd718dcd",
   "tables": [
-    {
-      "alias": "chain",
-      "columns": [
-        {
-          "indexed": false,
-          "name": "block_number",
-          "sol_type": "implicit",
-          "storage": "u64"
-        },
-        {
-          "indexed": false,
-          "name": "block_hash",
-          "sol_type": "implicit",
-          "storage": "bytes32"
-        },
-        {
-          "indexed": false,
-          "name": "block_timestamp",
-          "sol_type": "implicit",
-          "storage": "u64"
-        },
-        {
-          "indexed": false,
-          "name": "tx_hash",
-          "sol_type": "implicit",
-          "storage": "bytes32"
-        },
-        {
-          "indexed": false,
-          "name": "log_index",
-          "sol_type": "implicit",
-          "storage": "u64"
-        },
-        {
-          "indexed": false,
-          "name": "address",
-          "sol_type": "implicit",
-          "storage": "address"
-        },
-        {
-          "indexed": false,
-          "name": "_seq",
-          "sol_type": "implicit",
-          "storage": "u64"
-        },
-        {
-          "indexed": false,
-          "name": "parent_hash",
-          "sol_type": "bytes32",
-          "storage": "fixed_bytes"
-        },
-        {
-          "indexed": false,
-          "name": "miner",
-          "sol_type": "address",
-          "storage": "address"
-        },
-        {
-          "indexed": false,
-          "name": "gas_used",
-          "sol_type": "uint64",
-          "storage": "u64"
-        },
-        {
-          "indexed": false,
-          "name": "gas_limit",
-          "sol_type": "uint64",
-          "storage": "u64"
-        },
-        {
-          "indexed": false,
-          "name": "base_fee_per_gas",
-          "sol_type": "uint64",
-          "storage": "u64"
-        },
-        {
-          "indexed": false,
-          "name": "size",
-          "sol_type": "uint64",
-          "storage": "u64"
-        },
-        {
-          "indexed": false,
-          "name": "transaction_count",
-          "sol_type": "uint64",
-          "storage": "u64"
-        },
-        {
-          "indexed": false,
-          "name": "l1_block_number",
-          "sol_type": "uint64",
-          "storage": "u64"
-        }
-      ],
-      "kind": "block",
-      "table": "blocks"
-    },
     {
       "alias": "data_edge",
       "columns": [
@@ -148,6 +51,12 @@
           "name": "_payload",
           "sol_type": "bytes",
           "storage": "bytes"
+        },
+        {
+          "indexed": false,
+          "name": "tx_from",
+          "sol_type": "address",
+          "storage": "address"
         }
       ],
       "function": "submitQoSPayload(bytes)",
@@ -211,6 +120,12 @@
           "name": "input",
           "sol_type": "bytes",
           "storage": "str"
+        },
+        {
+          "indexed": false,
+          "name": "tx_from",
+          "sol_type": "address",
+          "storage": "address"
         }
       ],
       "kind": "call",
@@ -284,6 +199,187 @@
       "table": "qos_indexer_payload"
     },
     {
+      "alias": "qos_indexer_attempt_rows",
+      "columns": [
+        {
+          "indexed": false,
+          "name": "block_number",
+          "sol_type": "implicit",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "block_hash",
+          "sol_type": "implicit",
+          "storage": "bytes32"
+        },
+        {
+          "indexed": false,
+          "name": "block_timestamp",
+          "sol_type": "implicit",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "tx_hash",
+          "sol_type": "implicit",
+          "storage": "bytes32"
+        },
+        {
+          "indexed": false,
+          "name": "log_index",
+          "sol_type": "implicit",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "address",
+          "sol_type": "implicit",
+          "storage": "address"
+        },
+        {
+          "indexed": false,
+          "name": "_seq",
+          "sol_type": "implicit",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "cid",
+          "sol_type": "string",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "document_log_index",
+          "sol_type": "u64",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "source_log_index",
+          "sol_type": "u64",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "element",
+          "sol_type": "u64",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "indexer_wallet",
+          "sol_type": "string",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "indexer_url",
+          "sol_type": "string",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "subgraph_deployment_ipfs_hash",
+          "sol_type": "string",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "chain",
+          "sol_type": "string",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "gateway_id",
+          "sol_type": "string",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "start_epoch",
+          "sol_type": "u64",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "end_epoch",
+          "sol_type": "u64",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "query_count",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "num_indexer_200_responses",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "proportion_indexer_200_responses",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "avg_indexer_latency_ms",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "max_indexer_latency_ms",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "stdev_indexer_latency_ms",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "avg_indexer_blocks_behind",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "max_indexer_blocks_behind",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "avg_query_fee",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "max_query_fee",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "total_query_fees",
+          "sol_type": "number",
+          "storage": "string"
+        }
+      ],
+      "kind": "call",
+      "table": "qos_indexer_attempt_rows"
+    },
+    {
       "alias": "qos_query_payload",
       "columns": [
         {
@@ -349,6 +445,169 @@
       ],
       "kind": "call",
       "table": "qos_query_payload"
+    },
+    {
+      "alias": "qos_query_result_rows",
+      "columns": [
+        {
+          "indexed": false,
+          "name": "block_number",
+          "sol_type": "implicit",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "block_hash",
+          "sol_type": "implicit",
+          "storage": "bytes32"
+        },
+        {
+          "indexed": false,
+          "name": "block_timestamp",
+          "sol_type": "implicit",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "tx_hash",
+          "sol_type": "implicit",
+          "storage": "bytes32"
+        },
+        {
+          "indexed": false,
+          "name": "log_index",
+          "sol_type": "implicit",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "address",
+          "sol_type": "implicit",
+          "storage": "address"
+        },
+        {
+          "indexed": false,
+          "name": "_seq",
+          "sol_type": "implicit",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "cid",
+          "sol_type": "string",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "document_log_index",
+          "sol_type": "u64",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "source_log_index",
+          "sol_type": "u64",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "element",
+          "sol_type": "u64",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "subgraph_deployment_ipfs_hash",
+          "sol_type": "string",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "chain",
+          "sol_type": "string",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "gateway_id",
+          "sol_type": "string",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "start_epoch",
+          "sol_type": "u64",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "end_epoch",
+          "sol_type": "u64",
+          "storage": "u64"
+        },
+        {
+          "indexed": false,
+          "name": "query_count",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "gateway_query_success_rate",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "user_attributed_error_rate",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "avg_gateway_latency_ms",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "max_gateway_latency_ms",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "stdev_gateway_latency_ms",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "avg_query_fee",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "max_query_fee",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "total_query_fees",
+          "sol_type": "number",
+          "storage": "string"
+        },
+        {
+          "indexed": false,
+          "name": "most_recent_query_ts",
+          "sol_type": "number",
+          "storage": "string"
+        }
+      ],
+      "kind": "call",
+      "table": "qos_query_result_rows"
     }
   ]
 }

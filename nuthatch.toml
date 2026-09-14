@@ -21,13 +21,13 @@ abi = "abis/data-edge.json"
 
 [extract]
 top_level_calls = true
-# A header row per block, kept for the window cap it brings rather than the rows. A nest with no events
-# gets an empty `eth_getLogs` every window, so the adaptive window grows 4x each time (1,000 to 4,000
-# in three windows, measured) and every CID past the resolver's 64-per-window budget is lost for good.
-# A blocks nest is capped at 800 blocks, about 27 documents per window at this oracle's cadence.
-blocks = true
 
-# One declaration per topic. Per-indexer, per-deployment rows: the charts and the quality score.
+# One declaration per topic. Each document is exploded into typed rows when it resolves, so the views
+# read columns: computing a day of rollups from the JSON at query time peaked at 3.86 GB. The raw JSON
+# is not kept; the CID still names the bytes every row came from. `max_rows` is headroom over the
+# largest document seen (2,872 indexer-attempt and 1,234 query-result elements).
+
+# Per indexer, deployment, chain and gateway: the charts and the quality score.
 [[ipfs]]
 name = "qos_indexer_payload"
 on = "data_edge__call_submit_qo_s_payload"
@@ -35,11 +35,57 @@ cid_column = "_payload"
 cid_json_path = "hash"
 json_match = { topic = "gateway_indexer_attempt_qos_5_minutes_prod_v3" }
 
-# Per-deployment rows from the gateway's side: each deployment's query total, the served-share
-# denominator.
+[ipfs.rows]
+table = "qos_indexer_attempt_rows"
+max_rows = 16384
+keep_content = false
+columns = [
+    { name = "indexer_wallet", type = "string" },
+    { name = "indexer_url", type = "string" },
+    { name = "subgraph_deployment_ipfs_hash", type = "string" },
+    { name = "chain", type = "string" },
+    { name = "gateway_id", type = "string" },
+    { name = "start_epoch", type = "u64" },
+    { name = "end_epoch", type = "u64" },
+    { name = "query_count", type = "number" },
+    { name = "num_indexer_200_responses", type = "number" },
+    { name = "proportion_indexer_200_responses", type = "number" },
+    { name = "avg_indexer_latency_ms", type = "number" },
+    { name = "max_indexer_latency_ms", type = "number" },
+    { name = "stdev_indexer_latency_ms", type = "number" },
+    { name = "avg_indexer_blocks_behind", type = "number" },
+    { name = "max_indexer_blocks_behind", type = "number" },
+    { name = "avg_query_fee", type = "number" },
+    { name = "max_query_fee", type = "number" },
+    { name = "total_query_fees", type = "number" },
+]
+
+# Per deployment, chain and gateway from the gateway's side.
 [[ipfs]]
 name = "qos_query_payload"
 on = "data_edge__call_submit_qo_s_payload"
 cid_column = "_payload"
 cid_json_path = "hash"
 json_match = { topic = "gateway_query_result_qos_5_minutes_prod_v3" }
+
+[ipfs.rows]
+table = "qos_query_result_rows"
+max_rows = 8192
+keep_content = false
+columns = [
+    { name = "subgraph_deployment_ipfs_hash", type = "string" },
+    { name = "chain", type = "string" },
+    { name = "gateway_id", type = "string" },
+    { name = "start_epoch", type = "u64" },
+    { name = "end_epoch", type = "u64" },
+    { name = "query_count", type = "number" },
+    { name = "gateway_query_success_rate", type = "number" },
+    { name = "user_attributed_error_rate", type = "number" },
+    { name = "avg_gateway_latency_ms", type = "number" },
+    { name = "max_gateway_latency_ms", type = "number" },
+    { name = "stdev_gateway_latency_ms", type = "number" },
+    { name = "avg_query_fee", type = "number" },
+    { name = "max_query_fee", type = "number" },
+    { name = "total_query_fees", type = "number" },
+    { name = "most_recent_query_ts", type = "number" },
+]

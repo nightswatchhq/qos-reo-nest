@@ -7,20 +7,6 @@ schema_version = 1
 [nest]
 description = "Edge & Node's gateway QoS oracle, read from its own postings on Gnosis: the submitQoSPayload calls to the DataEdge and the five-minute aggregate documents their CIDs name. Serves the per indexer, deployment and day figures behind Lodestar's Query Performance chart and QoS Quality score, with no Graph API key."
 
-[table.blocks]
-description = "One header row per block. Declared for the 800-block window cap it brings to an event-less nest, not for its rows; see nuthatch.toml."
-grain = "one row per block"
-
-[table.blocks.columns]
-base_fee_per_gas = "The `base_fee_per_gas` uint64 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
-gas_limit = "The `gas_limit` uint64 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
-gas_used = "The `gas_used` uint64 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
-l1_block_number = "The `l1_block_number` uint64 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
-miner = "The `miner` address parameter. (seeded from the ABI - edit semantic.toml to improve this)"
-parent_hash = "The `parent_hash` bytes32 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
-size = "The `size` uint64 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
-transaction_count = "The `transaction_count` uint64 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
-
 [table.calls_raw]
 description = "Every top-level transaction to the DataEdge, undecoded: selector and input. The fallback surface for a call whose selector the ABI does not know."
 grain = "one row per top-level transaction to a declared contract"
@@ -28,6 +14,7 @@ grain = "one row per top-level transaction to a declared contract"
 [table.calls_raw.columns]
 input = "The `input` bytes parameter. (seeded from the ABI - edit semantic.toml to improve this)"
 selector = "The `selector` bytes4 parameter. (seeded from the ABI - edit semantic.toml to improve this)"
+tx_from = "The transaction sender. qos_published_call keeps only calls from a listed publisher."
 
 [table.data_edge__call_submit_qo_s_payload]
 description = "One submitQoSPayload call. _payload is UTF-8 JSON, {topic, hash, timestamp}, where hash is the CID of a five-minute aggregate and timestamp is the bucket END in epoch seconds. Two calls per bucket, one per topic."
@@ -35,30 +22,84 @@ grain = "one row per submitQoSPayload transaction"
 
 [table.data_edge__call_submit_qo_s_payload.columns]
 _payload = "Hex-encoded bytes of the JSON message. json_extract_string(decode(unhex(substr(_payload, 3))), '$.hash') is the CID."
+tx_from = "The transaction sender. qos_published_call keeps only calls from a listed publisher."
+
+[table.qos_indexer_attempt_rows]
+description = "One typed row per element of a proven gateway_indexer_attempt_qos_5_minutes_prod_v3 document: one indexer, deployment, chain and gateway for one five-minute bucket, exploded when the document resolved (RFC-0037 slice 8). Read it through qos_indexer_attempt, which filters to the listed publisher and to the first document for each bucket."
+grain = "one row per element of a proven document"
+
+[table.qos_indexer_attempt_rows.columns]
+avg_indexer_blocks_behind = "Mean blocks behind chain head on this deployment's chain. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+avg_indexer_latency_ms = "Mean latency in ms; behaves as if it includes failed responses. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+avg_query_fee = "Mean fee per query in GRT. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+chain = "The chain name the oracle uses, e.g. mainnet, arbitrum-one, base. Lower-cased in the views."
+cid = "The CID of the proven document this row came from."
+document_log_index = "The log_index of that document's row in the payload table, in the same block. With block_number it is the document's key."
+element = "The row's position in the document, from 0."
+end_epoch = "Bucket end, epoch seconds."
+gateway_id = "The gateway that measured the row, as the oracle spells it."
+indexer_url = "The indexer's service URL."
+indexer_wallet = "The indexer's address as the oracle spells it. Lower-cased in the views."
+max_indexer_blocks_behind = "Maximum blocks behind. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+max_indexer_latency_ms = "Maximum latency in ms. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+max_query_fee = "Maximum fee per query in GRT. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+num_indexer_200_responses = "Of those, answered with HTTP 200. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+proportion_indexer_200_responses = "num_indexer_200_responses / query_count as the oracle computed it; the views prefer the count. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+query_count = "Queries the gateway sent this indexer on this deployment in the bucket. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+source_log_index = "The log_index of the submitQoSPayload call that named the document, in the same block. Join it to the call table to read the sender (tx_from)."
+start_epoch = "Bucket start, epoch seconds. A day is the UTC day of this, not of the publisher's timestamp."
+stdev_indexer_latency_ms = "Latency standard deviation in ms. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+subgraph_deployment_ipfs_hash = "The subgraph deployment (Qm...)."
+total_query_fees = "Fees for the bucket in GRT. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
 
 [table.qos_indexer_payload]
-description = "The resolved gateway_indexer_attempt_qos_5_minutes_prod_v3 document a call named: a JSON array with one element per indexer, deployment, chain and gateway for one five-minute bucket. Read it through qos_indexer_attempt, never directly."
+description = "The resolved gateway_indexer_attempt_qos_5_minutes_prod_v3 document a call named: a JSON array with one element per indexer, deployment, chain and gateway for one five-minute bucket. Its rows are in qos_indexer_attempt_rows; read them through qos_indexer_attempt."
 grain = "one row per distinct CID resolved"
 
 [table.qos_indexer_payload.columns]
 cid = "The document's CID as posted in the call's JSON hash field."
-content = "The document, verbatim JSON text."
-verified = "The `verified` bool parameter - stored as exact text `'true'`/`'false'`, not a SQL boolean. `verified = true` and `AND`/`NOT` implicitly cast and work; `COALESCE`, `CASE`, `bool_and`/`bool_or` and `UNION` do not. Write `verified = 'true'` or `CAST(verified AS BOOLEAN)`. True only when the bytes were proven against the CID; every document this oracle publishes is over the 256 KiB single-block limit and reads false until multi-block verification lands."
+content = "Empty: this nest drops the raw JSON once its typed rows are written (keep_content = false). The CID names the bytes, and the rows are in qos_indexer_attempt_rows / qos_query_result_rows."
+verified = "The `verified` bool parameter - stored as exact text `'true'`/`'false'`, not a SQL boolean. `verified = true` and `AND`/`NOT` implicitly cast and work; `COALESCE`, `CASE`, `bool_and`/`bool_or` and `UNION` do not. Write `verified = 'true'` or `CAST(verified AS BOOLEAN)`. True on every row this build writes: nuthatch stores only documents proven against their CID."
 
 [table.qos_indexer_payload.footguns]
 bools = ["verified"]
 
 [table.qos_query_payload]
-description = "The resolved gateway_query_result_qos_5_minutes_prod_v3 document a call named: a JSON array with one element per deployment, chain and gateway for one five-minute bucket. Read it through qos_query_result."
+description = "The resolved gateway_query_result_qos_5_minutes_prod_v3 document a call named: a JSON array with one element per deployment, chain and gateway for one five-minute bucket. Its rows are in qos_query_result_rows; read them through qos_query_result."
 grain = "one row per distinct CID resolved"
 
 [table.qos_query_payload.columns]
 cid = "The document's CID as posted in the call's JSON hash field."
-content = "The document, verbatim JSON text."
-verified = "The `verified` bool parameter - stored as exact text `'true'`/`'false'`, not a SQL boolean. `verified = true` and `AND`/`NOT` implicitly cast and work; `COALESCE`, `CASE`, `bool_and`/`bool_or` and `UNION` do not. Write `verified = 'true'` or `CAST(verified AS BOOLEAN)`. True only when the bytes were proven against the CID; every document this oracle publishes is over the 256 KiB single-block limit and reads false until multi-block verification lands."
+content = "Empty: this nest drops the raw JSON once its typed rows are written (keep_content = false). The CID names the bytes, and the rows are in qos_indexer_attempt_rows / qos_query_result_rows."
+verified = "The `verified` bool parameter - stored as exact text `'true'`/`'false'`, not a SQL boolean. `verified = true` and `AND`/`NOT` implicitly cast and work; `COALESCE`, `CASE`, `bool_and`/`bool_or` and `UNION` do not. Write `verified = 'true'` or `CAST(verified AS BOOLEAN)`. True on every row this build writes: nuthatch stores only documents proven against their CID."
 
 [table.qos_query_payload.footguns]
 bools = ["verified"]
+
+[table.qos_query_result_rows]
+description = "One typed row per element of a proven gateway_query_result_qos_5_minutes_prod_v3 document: one deployment, chain and gateway for one five-minute bucket, from the gateway's side. Its rows are in qos_query_result_rows; read them through qos_query_result."
+grain = "one row per element of a proven document"
+
+[table.qos_query_result_rows.columns]
+avg_gateway_latency_ms = "Mean gateway latency in ms. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+avg_query_fee = "Mean fee per query in GRT. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+chain = "The chain name the oracle uses, e.g. mainnet, arbitrum-one, base. Lower-cased in the views."
+cid = "The CID of the proven document this row came from."
+document_log_index = "The log_index of that document's row in the payload table, in the same block. With block_number it is the document's key."
+element = "The row's position in the document, from 0."
+end_epoch = "Bucket end, epoch seconds."
+gateway_id = "The gateway that measured the row, as the oracle spells it."
+gateway_query_success_rate = "Share of those the gateway answered successfully. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+max_gateway_latency_ms = "Maximum gateway latency in ms. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+max_query_fee = "Maximum fee per query in GRT. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+most_recent_query_ts = "The last query in the bucket, epoch milliseconds. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+query_count = "Queries the gateway served for this deployment in the bucket. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+source_log_index = "The log_index of the submitQoSPayload call that named the document, in the same block. Join it to the call table to read the sender (tx_from)."
+start_epoch = "Bucket start, epoch seconds. A day is the UTC day of this, not of the publisher's timestamp."
+stdev_gateway_latency_ms = "Gateway latency standard deviation in ms. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+subgraph_deployment_ipfs_hash = "The subgraph deployment (Qm...)."
+total_query_fees = "Fees for the bucket in GRT. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
+user_attributed_error_rate = "Share failed for reasons the gateway attributes to the caller. Stored as the JSON number's decimal text; empty text when the document had none. Cast it: CAST(nullif(col, '') AS DOUBLE)."
 
 [view.qos_allocation_bucket]
 description = "Per indexer, deployment, chain, gateway and bucket, with query-weighted numerators kept for exact re-weighting."
@@ -69,17 +110,26 @@ description = "Per indexer, deployment, chain, gateway and UTC day. success_rate
 [view.qos_chain_block_time]
 description = "Block time in seconds by the oracle's chain name, identical to kittiwake's block_time_sec. A chain not listed has no seconds-behind figure."
 
+[view.qos_day_resolution]
+description = "Per UTC day and topic: buckets posted, buckets whose document is stored, postings whose document is not (a given-up document stays unresolved), and the highest block holding a posting. What a reader checks before treating a day as final."
+
 [view.qos_deployment_daily]
 description = "Each deployment's query total per chain, gateway and day from the gateway's side: the served-share denominator."
 
 [view.qos_deployment_lag_floor]
 description = "The least-lagging credible peer (>=100 queries) per deployment, chain and day, only where at least three credible peers exist."
 
+[view.qos_freshness]
+description = "Per topic: the newest bucket this nest holds figures for, and separately when a listed publisher last posted. They are different questions. Read from postings and stored documents, so its cost follows documents, not typed rows."
+
 [view.qos_indexer_attempt]
 description = "One row per indexer, deployment, chain and gateway per five-minute bucket, typed. day is the UTC day of bucket_start (the publisher's timestamp is the bucket end). A bucket published twice counts once, from its first document."
 
+[view.qos_indexer_attempt_first_document]
+description = "The first document for each indexer-attempt bucket, found from each document's element 0. A bucket posted twice counts once."
+
 [view.qos_indexer_attempt_raw]
-description = "Indexer-attempt documents exploded into one struct per element, before bucket dedupe. Use qos_indexer_attempt."
+description = "Typed indexer-attempt rows from a listed publisher, cast once, before the one-document-per-bucket rule. Use qos_indexer_attempt."
 
 [view.qos_indexer_bucket]
 description = "Per indexer per bucket, summed across its allocations: the grain bad buckets are counted at."
@@ -93,14 +143,32 @@ description = "Per indexer, deployment, chain and day: query-weighted blocks beh
 [view.qos_indexer_seconds_behind]
 description = "Per indexer per day: query-weighted seconds behind peers, the share of queries more than five minutes behind, and the share of queries that had a known block time."
 
+[view.qos_posting]
+description = "One row per document a listed publisher named, decoded from its calldata: topic (indexer or query), CID, bucket_start (the payload timestamp less 300) and day. Undecodable calldata names nothing."
+
+[view.qos_published_call]
+description = "The submitQoSPayload calls a listed publisher sent, by tx_from."
+
+[view.qos_publisher]
+description = "The publisher addresses whose posts count. Data, not code: the reference subgraph's hard-coded allowlist went stale when the signer rotated."
+
 [view.qos_query_result]
 description = "One row per deployment, chain and gateway per five-minute bucket from the gateway's side, typed; same day and dedupe rules as qos_indexer_attempt."
 
+[view.qos_query_result_first_document]
+description = "The first document for each query-result bucket."
+
 [view.qos_query_result_raw]
 description = "Query-result documents exploded into one struct per element, before bucket dedupe. Use qos_query_result."
+
+[view.qos_rejected_documents]
+description = "Documents no listed publisher named, with their row counts. Counted rather than silently dropped."
 
 [view.qos_seconds_behind]
 description = "Seconds behind net of the deployment's peer floor; the raw figure where no floor exists."
 
 [view.qos_settings]
 description = "The nest's switches. require_verified = FALSE until nuthatch verifies multi-block documents; set TRUE and no unverified document reaches any figure."
+
+[view.qos_stored_document]
+description = "One row per stored, verified document, keyed by topic, block and CID, the pair a posting names."
