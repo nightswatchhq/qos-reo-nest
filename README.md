@@ -38,7 +38,8 @@ subgraph starts at 24,747,400 if more history is wanted.
   Quality score reads.
 - **`qos_deployment_daily`** - each deployment's query total from the gateway's side.
 - **`qos_indexer_seconds_behind`** / **`qos_seconds_behind`** - seconds behind the freshest credible
-  peer on the same deployment, per indexer and per deployment.
+  peer on the same deployment, per indexer and per deployment. A deployment-day with fewer than three
+  credible peers has no figure, and `share_with_block_time` is the share of queries that have one.
 - **`qos_indexer_attempt`** / **`qos_query_result`** - the typed five-minute rows everything above is
   built from, from a listed publisher and one document per bucket.
 - **`qos_freshness`** - per topic, the newest bucket held and, separately, when the publisher last posted.
