@@ -5,19 +5,14 @@
 -- counts. Summing both would double every figure for those five minutes and nothing downstream could
 -- tell. In 2026-09-06..12 no bucket was published twice.
 
--- The first document for each bucket, found from one row per document (its element 0) rather than a
--- window over every row, which at 90 days is tens of millions of rows sorted per query. The key orders
--- documents by block then log index; a log index is always under 1,000,000.
-CREATE VIEW qos_indexer_attempt_first_document AS
-SELECT start_epoch, min(block_number * 1000000 + log_index) AS document_key
-FROM qos_indexer_attempt_raw
-WHERE element = 0
-GROUP BY start_epoch;
-
+-- The first document for each bucket, by a window partitioned by day and bucket: a day filter passes
+-- through the partition, so a one-day statement reads the rows once, where a join back to each bucket's
+-- first document read them twice. The key orders documents by block then log index; a log index is
+-- always under 1,000,000.
 CREATE VIEW qos_indexer_attempt AS
 SELECT r.start_epoch AS bucket_start,
        r.end_epoch AS bucket_end,
-       DATE '1970-01-01' + CAST(r.start_epoch // 86400 AS INTEGER) AS day,
+       r.day,
        lower(r.indexer_wallet) AS indexer,
        r.indexer_url,
        r.subgraph_deployment_ipfs_hash AS deployment,
@@ -38,19 +33,13 @@ SELECT r.start_epoch AS bucket_start,
        r.verified,
        r.block_number
 FROM qos_indexer_attempt_raw r
-JOIN qos_indexer_attempt_first_document f
-  ON f.start_epoch = r.start_epoch AND f.document_key = r.block_number * 1000000 + r.log_index;
-
-CREATE VIEW qos_query_result_first_document AS
-SELECT start_epoch, min(block_number * 1000000 + log_index) AS document_key
-FROM qos_query_result_raw
-WHERE element = 0
-GROUP BY start_epoch;
+QUALIFY r.block_number * 1000000 + r.log_index
+  = min(r.block_number * 1000000 + r.log_index) OVER (PARTITION BY r.day, r.start_epoch);
 
 CREATE VIEW qos_query_result AS
 SELECT r.start_epoch AS bucket_start,
        r.end_epoch AS bucket_end,
-       DATE '1970-01-01' + CAST(r.start_epoch // 86400 AS INTEGER) AS day,
+       r.day,
        r.subgraph_deployment_ipfs_hash AS deployment,
        lower(r.chain) AS chain,
        lower(r.gateway_id) AS gateway,
@@ -68,8 +57,8 @@ SELECT r.start_epoch AS bucket_start,
        r.verified,
        r.block_number
 FROM qos_query_result_raw r
-JOIN qos_query_result_first_document f
-  ON f.start_epoch = r.start_epoch AND f.document_key = r.block_number * 1000000 + r.log_index;
+QUALIFY r.block_number * 1000000 + r.log_index
+  = min(r.block_number * 1000000 + r.log_index) OVER (PARTITION BY r.day, r.start_epoch);
 
 -- Block times by the oracle's chain name, identical to kittiwake's `block_time_sec`. A chain not listed
 -- has no seconds-behind figure at all: an unknown block time is not evidence of lag.

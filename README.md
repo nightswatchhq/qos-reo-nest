@@ -94,10 +94,12 @@ The publisher resumed from the tip each time without backfilling.
 
 ## Still open
 
-- **90 days is extrapolated, not measured in nuthatch.** kittiwake#143 asks for one day per statement. On the
-  2026-09-06..13 store (7.8 days, 4.59M typed rows) the heaviest one-day statement serves at 176 MB in 1.1 to
-  1.5 s, under both the 512 MB default and 256 MB. On a 96-day DuckDB copy of that store memory stayed flat and
-  each statement took 9 to 10 s, because a one-day statement still scans every stored row. Serve with the
+- **One day per statement, measured at 93 days.** kittiwake#143 asks for one day per statement inside
+  nuthatch's 29 s SQL budget. Rows take their day through `qos_day_bounds`, whose text range DuckDB pushes into
+  the Parquet scan, and the dedupe, the indexer-day and the seconds-behind floor read a day's rows once. On
+  2026-09-15, with 66.6M indexer-attempt rows in 4,458 segments, one day of `qos_indexer_daily` took 13 to
+  17 s (refused after 35 s before), `qos_indexer_seconds_behind` 11 to 12 s (60 s) and `qos_allocation_daily`
+  7 to 10 s (40 s), each alone on the nest. That leaves little room when statements share it. Serve with the
   512 MB default and `NUTHATCH_SQL_MAX_CONCURRENCY` at least 2.
 - **Sealing megabyte ranges** needs nuthatch with byte-bounded seal cuts (nuthatch#1391, merged 2026-09-14,
   and #1376). Without it a run sealing these ranges reached 4.1 to 4.5 GB RSS.

@@ -24,13 +24,21 @@ WHERE query_count >= 100 AND seconds_behind IS NOT NULL
 GROUP BY ALL
 HAVING count(*) >= 3;
 
+-- The floor is `qos_deployment_lag_floor`'s, taken with a window so a one-day statement reads the rows
+-- once. A NULL deployment or chain gets no floor, as a join to that view would find none.
 CREATE VIEW qos_seconds_behind AS
-SELECT l.indexer, l.deployment, l.chain, l.day, l.query_count, l.blocks_behind, l.seconds_behind,
-       f.floor_seconds_behind,
-       CASE WHEN f.floor_seconds_behind IS NULL THEN l.seconds_behind
-            ELSE greatest(l.seconds_behind - f.floor_seconds_behind, 0) END AS seconds_behind_peers
-FROM qos_indexer_deployment_lag l
-LEFT JOIN qos_deployment_lag_floor f USING (deployment, chain, day);
+SELECT indexer, deployment, chain, day, query_count, blocks_behind, seconds_behind, floor_seconds_behind,
+       CASE WHEN floor_seconds_behind IS NULL THEN seconds_behind
+            ELSE greatest(seconds_behind - floor_seconds_behind, 0) END AS seconds_behind_peers
+FROM (
+  SELECT l.*,
+         CASE WHEN deployment IS NOT NULL AND chain IS NOT NULL
+               AND count(*) FILTER (WHERE query_count >= 100 AND seconds_behind IS NOT NULL) OVER w >= 3
+              THEN min(seconds_behind) FILTER (WHERE query_count >= 100 AND seconds_behind IS NOT NULL) OVER w
+         END AS floor_seconds_behind
+  FROM qos_indexer_deployment_lag l
+  WINDOW w AS (PARTITION BY deployment, chain, day)
+);
 
 -- The chart's figures: query-weighted over the indexer's deployments with a known block time, and the
 -- share of its queries that had one, so a day measured on 40% of traffic does not read as the whole.
