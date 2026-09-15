@@ -24,7 +24,7 @@ JSON array of five-minute aggregates:
 | `gateway_indexer_attempt_qos_5_minutes_prod_v3` | indexer, deployment, chain, gateway | the charts and the quality score |
 | `gateway_query_result_qos_5_minutes_prod_v3` | deployment, chain, gateway | each deployment's query total (served share) |
 
-The publisher seen from 2026-06 to 2026-09 is `0x8cbbe43f97f80efa6ba0a95f3d544e03f84db0ce`. Indexer-attempt
+Edge & Node posted from `0x0b8cef00f90553b9535845be6abbe3797582d424` until 2026-07-01 03:50 UTC (block 46,972,821) and from `0x8cbbe43f97f80efa6ba0a95f3d544e03f84db0ce` since 2026-07-03 14:55 UTC (block 47,014,403). Both carry the same gateway ID, `0xff4b7a5efd00ff2ec3518d4f250a27e4c29a2211`, and neither posted in the other's span. Indexer-attempt
 documents run 1.5 to 1.9 MB and 2,500 to 2,900 elements; query-result documents about 0.6 MB.
 
 `start_block` is 46,700,000 (2026-06-14 23:15 UTC), a 90-day window from 2026-09-13. The reference
@@ -71,6 +71,7 @@ wrong:
 
 These are gaps in Edge & Node's data, not in this nest, and they read as gaps rather than zeros:
 
+- From 2026-07-01 03:50 to 2026-07-03 14:55, about 59 hours with no postings, while the publisher changed address.
 - From 2026-07-29, about 38 hours with no postings.
 - From 2026-08-04, 37 hours or more with no postings.
 - In 2026-09-06..12, two indexer-attempt buckets and five query-result buckets were never posted.
