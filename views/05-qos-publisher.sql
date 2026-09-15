@@ -3,7 +3,8 @@
 -- Rejected documents are counted, never silently dropped.
 CREATE VIEW qos_publisher AS
 SELECT * FROM (VALUES
-  ('0x8cbbe43f97f80efa6ba0a95f3d544e03f84db0ce', 'Edge & Node gateway QoS publisher, seen 2026-06 to 2026-09')
+  ('0x0b8cef00f90553b9535845be6abbe3797582d424', 'Edge & Node gateway QoS publisher to 2026-07-01 03:50 UTC, block 46972821'),
+  ('0x8cbbe43f97f80efa6ba0a95f3d544e03f84db0ce', 'Edge & Node gateway QoS publisher from 2026-07-03 14:55 UTC, block 47014403')
 ) AS t(address, note);
 
 -- The calls a listed publisher sent, by the sender nuthatch records on every call row (`tx_from`).
