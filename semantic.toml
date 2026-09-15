@@ -110,6 +110,9 @@ description = "Per indexer, deployment, chain, gateway and UTC day. success_rate
 [view.qos_chain_block_time]
 description = "Block time in seconds by the oracle's chain name, identical to kittiwake's block_time_sec. A chain not listed has no seconds-behind figure."
 
+[view.qos_day_bounds]
+description = "Each UTC day with its first and last bucket start as ten-digit decimal text. The typed-row views join it so a day filter reaches the Parquet scan as a range; not for reading directly."
+
 [view.qos_day_resolution]
 description = "Per UTC day and topic: buckets posted, buckets whose document is stored, postings whose document is not (a given-up document stays unresolved), and the highest block holding a posting. What a reader checks before treating a day as final."
 
@@ -125,9 +128,6 @@ description = "Per topic: the newest bucket this nest holds figures for, and sep
 [view.qos_indexer_attempt]
 description = "One row per indexer, deployment, chain and gateway per five-minute bucket, typed. day is the UTC day of bucket_start (the publisher's timestamp is the bucket end). A bucket published twice counts once, from its first document."
 
-[view.qos_indexer_attempt_first_document]
-description = "The first document for each indexer-attempt bucket, found from each document's element 0. A bucket posted twice counts once."
-
 [view.qos_indexer_attempt_raw]
 description = "Typed indexer-attempt rows from a listed publisher, cast once, before the one-document-per-bucket rule. Use qos_indexer_attempt."
 
@@ -135,7 +135,7 @@ description = "Typed indexer-attempt rows from a listed publisher, cast once, be
 description = "Per indexer per bucket, summed across its allocations: the grain bad buckets are counted at."
 
 [view.qos_indexer_daily]
-description = "Per indexer per UTC day: additive figures summed from qos_allocation_daily, rates as ratios of those sums, never an average of rows. The Query Performance chart."
+description = "Per indexer per UTC day: additive figures summed over its allocations, rates as ratios of those sums, never an average of rows. The Query Performance chart."
 
 [view.qos_indexer_deployment_lag]
 description = "Per indexer, deployment, chain and day: query-weighted blocks behind and, where the chain's block time is known, seconds behind."
@@ -154,9 +154,6 @@ description = "The publisher addresses whose posts count. Data, not code: the re
 
 [view.qos_query_result]
 description = "One row per deployment, chain and gateway per five-minute bucket from the gateway's side, typed; same day and dedupe rules as qos_indexer_attempt."
-
-[view.qos_query_result_first_document]
-description = "The first document for each query-result bucket."
 
 [view.qos_query_result_raw]
 description = "Query-result documents exploded into one struct per element, before bucket dedupe. Use qos_query_result."

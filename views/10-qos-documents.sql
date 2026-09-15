@@ -4,6 +4,15 @@
 CREATE VIEW qos_settings AS
 SELECT TRUE AS require_verified;
 
+-- Each UTC day with its bucket starts as the decimal text the typed rows store. Rows match on the day
+-- computed from them; the text range is redundant to that, but DuckDB pushes it into the Parquet scan so
+-- `day = ...` reads one day's segments. Text orders like the number only at one length: ten digits here.
+CREATE VIEW qos_day_bounds AS
+SELECT DATE '1970-01-01' + CAST(d AS INTEGER) AS day,
+       CAST(d * 86400 AS VARCHAR) AS first_start_epoch,
+       CAST(d * 86400 + 86399 AS VARCHAR) AS last_start_epoch
+FROM range(11575, 115740) AS t(d);
+
 -- The typed rows nuthatch exploded from each proven document when it resolved (RFC-0037 slice 8), from
 -- a listed publisher only. Nothing here parses JSON. Stored columns are cast once, here: numbers arrive
 -- as their decimal text, and an absent one is empty text, which reads as NULL.
@@ -26,8 +35,12 @@ SELECT r.cid,
        CAST(nullif(r.max_indexer_blocks_behind, '') AS DOUBLE) AS max_indexer_blocks_behind,
        CAST(nullif(r.avg_query_fee, '') AS DOUBLE) AS avg_query_fee,
        CAST(nullif(r.max_query_fee, '') AS DOUBLE) AS max_query_fee,
-       CAST(nullif(r.total_query_fees, '') AS DOUBLE) AS total_query_fees
+       CAST(nullif(r.total_query_fees, '') AS DOUBLE) AS total_query_fees,
+       k.day
 FROM qos_indexer_attempt_rows r
+JOIN qos_day_bounds k
+  ON k.day = DATE '1970-01-01' + CAST(CAST(r.start_epoch AS BIGINT) // 86400 AS INTEGER)
+ AND r.start_epoch BETWEEN k.first_start_epoch AND k.last_start_epoch
 JOIN qos_indexer_payload d
   ON CAST(d.block_number AS BIGINT) = CAST(r.block_number AS BIGINT)
  AND CAST(d.log_index AS BIGINT) = CAST(r.document_log_index AS BIGINT)
@@ -54,8 +67,12 @@ SELECT r.cid,
        CAST(nullif(r.avg_query_fee, '') AS DOUBLE) AS avg_query_fee,
        CAST(nullif(r.max_query_fee, '') AS DOUBLE) AS max_query_fee,
        CAST(nullif(r.total_query_fees, '') AS DOUBLE) AS total_query_fees,
-       CAST(CAST(nullif(r.most_recent_query_ts, '') AS DOUBLE) AS BIGINT) AS most_recent_query_ts
+       CAST(CAST(nullif(r.most_recent_query_ts, '') AS DOUBLE) AS BIGINT) AS most_recent_query_ts,
+       k.day
 FROM qos_query_result_rows r
+JOIN qos_day_bounds k
+  ON k.day = DATE '1970-01-01' + CAST(CAST(r.start_epoch AS BIGINT) // 86400 AS INTEGER)
+ AND r.start_epoch BETWEEN k.first_start_epoch AND k.last_start_epoch
 JOIN qos_query_payload d
   ON CAST(d.block_number AS BIGINT) = CAST(r.block_number AS BIGINT)
  AND CAST(d.log_index AS BIGINT) = CAST(r.document_log_index AS BIGINT)
